@@ -434,7 +434,7 @@ endif()
 
 target_include_directories(novacoin-qt PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/src/qt ${CMAKE_CURRENT_SOURCE_DIR}/src/json ${BerkeleyDB_INC} ${CMAKE_CURRENT_SOURCE_DIR}/src/additional/leveldb/helpers ${CMAKE_CURRENT_SOURCE_DIR}/src/additional/libqrencode ${Boost_INCLUDE_DIRS})
 
-target_link_libraries(novacoin-qt ${ALL_LIBRARIES} OQS::oqs)
+target_link_libraries(novacoin-qt PRIVATE leveldb ${ALL_LIBRARIES} OQS::oqs)
 target_compile_features(novacoin-qt PUBLIC cxx_std_17)
 
 set_property(TARGET novacoin-qt PROPERTY CXX_STANDARD 17)
