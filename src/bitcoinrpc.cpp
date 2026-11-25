@@ -241,6 +241,7 @@ static const CRPCCommand vRPCCommands[] =
     { "getmininginfo",              &getmininginfo,               true,   false },
     { "scaninput",                  &scaninput,                   true,   true },
     { "getnewaddress",              &getnewaddress,               true,   false },
+    { "getnewfalconaddress",        &getnewfalconaddress,         true,   false },
     { "getnettotals",               &getnettotals,                true,   true  },
     { "ntptime",                    &ntptime,                     true,   true  },
     { "getaccountaddress",          &getaccountaddress,           true,   false },
@@ -289,6 +290,8 @@ static const CRPCCommand vRPCCommands[] =
     { "dumpwallet",                 &dumpwallet,                  true,   false },
     { "importwallet",               &importwallet,                false,  false },
     { "importprivkey",              &importprivkey,               false,  false },
+    { "dumpfalconkey",              &dumpfalconkey,               false,  false },
+    { "importfalconkey",            &importfalconkey,             false,  false },
     { "importaddress",              &importaddress,               false,  true  },
     { "removeaddress",              &removeaddress,               false,  true  },
     { "listunspent",                &listunspent,                 false,  false },
@@ -772,6 +775,7 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "keypoolreset"           && n > 0) ConvertTo<int64_t>(params[0]);
     if (strMethod == "importaddress"          && n > 2) ConvertTo<bool>(params[2]);
     if (strMethod == "importprivkey"          && n > 2) ConvertTo<bool>(params[2]);
+    if (strMethod == "importfalconkey"        && n > 2) ConvertTo<bool>(params[2]);
 
     return params;
 }

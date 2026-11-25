@@ -9,6 +9,8 @@
 #include "guiutil.h"
 #include "qrcodedialog.h"
 
+#include <QInputDialog>
+#include <QLineEdit>
 #include <QSortFilterProxyModel>
 #include <QClipboard>
 #include <QMessageBox>
@@ -27,6 +29,7 @@ AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
 
 #ifdef Q_OS_MAC // Icons on push buttons are very uncommon on Mac
     ui->newAddressButton->setIcon(QIcon());
+    ui->newFalconAddressButton->setIcon(QIcon());
     ui->copyToClipboard->setIcon(QIcon());
     ui->deleteButton->setIcon(QIcon());
 #endif
@@ -49,6 +52,7 @@ AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
         ui->deleteButton->setVisible(true);
         ui->signMessage->setVisible(false);
         ui->verifyMessage->setVisible(true);
+        ui->newFalconAddressButton->setVisible(false);
         break;
     case ReceivingTab:
         ui->deleteButton->setVisible(false);
@@ -222,6 +226,39 @@ void AddressBookPage::on_newAddressButton_clicked()
     {
         newAddressToSelect = dlg.getAddress();
     }
+}
+
+void AddressBookPage::on_newFalconAddressButton_clicked()
+{
+    if(!model)
+        return;
+
+    QInputDialog dlg(this);
+    dlg.setWindowTitle(tr("New Falcon address"));
+    dlg.setLabelText(tr("Label"));
+    dlg.setTextEchoMode(QLineEdit::Normal);
+    // Same width as the regular new-address dialog
+    {
+        EditAddressDialog editDlg(tab == SendingTab ?
+                                  EditAddressDialog::NewSendingAddress :
+                                  EditAddressDialog::NewReceivingAddress, this);
+        dlg.resize(editDlg.width(), dlg.sizeHint().height());
+    }
+    if(dlg.exec() != QDialog::Accepted)
+        return;
+    QString label = dlg.textValue();
+
+    QString strAddress = model->addFalconRow(label);
+    if(!strAddress.isEmpty())
+        newAddressToSelect = strAddress;
+    else if(model->getEditStatus() == AddressTableModel::WALLET_UNLOCK_FAILURE)
+        QMessageBox::critical(this, tr("Error generating address"),
+            tr("Could not unlock wallet."),
+            QMessageBox::Ok, QMessageBox::Ok);
+    else
+        QMessageBox::critical(this, tr("Error generating address"),
+            tr("Failed to generate a Falcon-512 address."),
+            QMessageBox::Ok, QMessageBox::Ok);
 }
 
 void AddressBookPage::on_deleteButton_clicked()

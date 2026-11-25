@@ -90,6 +90,49 @@ CMalleableKeyView CWallet::GenerateNewMalleableKey()
     return CMalleableKeyView(mKey);
 }
 
+CScriptID CWallet::GenerateNewFalconKey(CScript& redeemScriptRet)
+{
+    RandAddSeedPerfmon();
+    CFalconKey key;
+    key.MakeNewKey();
+    if (!key.IsValid())
+        throw std::runtime_error("CWallet::GenerateNewFalconKey() : falcon key generation failed");
+
+    if (!nTimeFirstKey)
+        nTimeFirstKey = GetTime();
+
+    if (!AddFalconKey(key))
+        throw std::runtime_error("CWallet::GenerateNewFalconKey() : AddFalconKey failed");
+
+    return AddFalconKeyAddress(key, redeemScriptRet);
+}
+
+CScriptID CWallet::AddFalconKeyAddress(const CFalconKey& key, CScript& redeemScriptRet)
+{
+    // 16 random salt bytes, same as the phoenix wallet (RANDOM_SALT_SIZE)
+    std::vector<unsigned char> vchSalt(16);
+    GetRandBytes(&vchSalt[0], (int)vchSalt.size());
+
+    std::vector<unsigned char> vchScript;
+    CFalconKey::BuildRedeemScript(vchSalt, key.GetID(), vchScript);
+    redeemScriptRet = CScript(vchScript.begin(), vchScript.end());
+
+    if (!AddCScript(redeemScriptRet))
+        throw std::runtime_error("CWallet::AddFalconKeyAddress() : AddCScript failed");
+    return redeemScriptRet.GetID();
+}
+
+bool CWallet::AddFalconKey(const CFalconKey& key)
+{
+    if (!CCryptoKeyStore::AddFalconKey(key))
+        return false;
+    if (!fFileBacked)
+        return true;
+    if (!IsCrypted())
+        return CWalletDB(strWalletFile).WriteFalconKey(key);
+    return true;
+}
+
 bool CWallet::AddKey(const CKey& key)
 {
     CPubKey pubkey = key.GetPubKey();
@@ -157,6 +200,25 @@ bool CWallet::AddCryptedKey(const CPubKey &vchPubKey, const std::vector<unsigned
             return pwalletdbEncryption->WriteCryptedKey(vchPubKey, vchCryptedSecret, mapKeyMetadata[addr]);
         else
             return CWalletDB(strWalletFile).WriteCryptedKey(vchPubKey, vchCryptedSecret, mapKeyMetadata[addr]);
+    }
+    return false;
+}
+
+bool CWallet::LoadCryptedFalconKey(const CFalconKeyID &id, const std::vector<unsigned char> &vchPubKey, const std::vector<unsigned char> &vchCryptedSecret) { SetMinVersion(FEATURE_WALLETCRYPT); return CCryptoKeyStore::AddCryptedFalconKey(id, vchPubKey, vchCryptedSecret); }
+
+bool CWallet::AddCryptedFalconKey(const CFalconKeyID &id, const std::vector<unsigned char> &vchPubKey, const std::vector<unsigned char> &vchCryptedSecret)
+{
+    if (!CCryptoKeyStore::AddCryptedFalconKey(id, vchPubKey, vchCryptedSecret))
+        return false;
+
+    if (!fFileBacked)
+        return true;
+    {
+        LOCK(cs_wallet);
+        if (pwalletdbEncryption)
+            return pwalletdbEncryption->WriteCryptedFalconKey(id, vchPubKey, vchCryptedSecret);
+        else
+            return CWalletDB(strWalletFile).WriteCryptedFalconKey(id, vchPubKey, vchCryptedSecret);
     }
     return false;
 }
@@ -509,6 +571,14 @@ bool CWallet::DecryptWallet(const SecureString& strWalletPassphrase)
                 pwalletdbDecryption->EraseCryptedMalleableKey(keyView);
                 pwalletdbDecryption->WriteMalleableKey(keyView, vchSecretH, mapKeyMetadata[CBitcoinAddress(keyView.GetMalleablePubKey())]);
                 mi2++;
+            }
+
+            FalconKeyMap::const_iterator mi3 = mapFalconKeys.begin();
+            while (mi3 != mapFalconKeys.end())
+            {
+                pwalletdbDecryption->EraseCryptedFalconKey(mi3->first);
+                pwalletdbDecryption->WriteFalconKey(mi3->second);
+                mi3++;
             }
 
             // Erase master keys

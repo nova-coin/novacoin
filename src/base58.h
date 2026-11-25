@@ -16,6 +16,7 @@
 #define BITCOIN_BASE58_H
 
 #include "key.h"
+#include "falconkey.h"
 #include "script.h"
 
 #include <openssl/crypto.h> // for OPENSSL_cleanse()
@@ -85,6 +86,8 @@ public:
  * The data vector contains RIPEMD160(SHA256(cscript)), where cscript is the serialized redemption script.
  * Pubkey-pair-addresses have version 1 (or 6 testnet)
  * The data vector contains a serialized copy of two compressed ECDSA secp256k1 public keys.
+ * Falcon addresses are ordinary P2SH SCRIPT_ADDRESS addresses (20 mainnet, 196 testnet);
+ * their redemption script is the phoenix falcon redeem script.
  */
 class CBitcoinAddress : public CBase58Data {
 public:
@@ -129,6 +132,27 @@ public:
 
     CBitcoinSecret(const CSecret& vchSecret, bool fCompressed);
     CBitcoinSecret() {}
+};
+
+/** A base58-encoded falcon-512 key pair.
+ * Payload: falcon public key (897 bytes) followed by the private key (1281 bytes).
+ * The public key is included because it cannot be derived from the falcon private
+ * key and is needed to reconstruct the key id (SHA256 of the public key).
+ */
+class CBitcoinFalconKey : public CBase58Data {
+public:
+    static const size_t SALT_SIZE = 16;
+
+    void SetKey(const CFalconKey& key, const std::vector<unsigned char>& vchSalt);
+    bool GetKey(CFalconKey& keyOut) const;
+    bool GetSalt(std::vector<unsigned char>& vchSaltOut) const;
+    bool IsValid() const;
+    unsigned char GetVersion() const { return nVersion; }
+    bool SetString(const char* pszSecret);
+    bool SetString(const std::string& strSecret);
+
+    CBitcoinFalconKey() {}
+    CBitcoinFalconKey(const CFalconKey& key, const std::vector<unsigned char>& vchSalt) { SetKey(key, vchSalt); }
 };
 
 #endif

@@ -106,6 +106,7 @@ const char* GetTxnOutputType(txnouttype t)
     case TX_PUBKEYHASH: return "pubkeyhash";
     case TX_SCRIPTHASH: return "scripthash";
     case TX_MULTISIG: return "multisig";
+    case TX_FALCON: return "falcon";
     case TX_NULL_DATA: return "nulldata";
     }
     return NULL;
@@ -1376,6 +1377,37 @@ bool CheckSig(std::vector<unsigned char> vchSig, const std::vector<unsigned char
 }
 
 
+// Recognize the phoenix falcon redeem script:
+//   push salt OP_DROP push 32 [32 byte SHA256(falcon pubkey)] OP_FALCONVERIFY 5x OP_DROP OP_TRUE
+// On match, typeRet is TX_FALCON and vSolutionsRet contains the 32-byte pubkey hash.
+static bool IsFalconRedeemScript(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::vector<unsigned char> >& vSolutionsRet)
+{
+    CScript::const_iterator pc = scriptPubKey.begin();
+    opcodetype opcode;
+    std::vector<unsigned char> vchSalt, vchHash;
+
+    if (!scriptPubKey.GetOp(pc, opcode, vchSalt) || opcode > OP_PUSHDATA4 ||
+            vchSalt.empty() || vchSalt.size() > MAX_SCRIPT_ELEMENT_SIZE)
+        return false;
+    if (!scriptPubKey.GetOp(pc, opcode, vchHash) || opcode != OP_DROP)
+        return false;
+    if (!scriptPubKey.GetOp(pc, opcode, vchHash) || opcode > OP_PUSHDATA4 || vchHash.size() != 32)
+        return false;
+    if (!scriptPubKey.GetOp(pc, opcode) || opcode != OP_FALCONVERIFY)
+        return false;
+    for (unsigned int i = 0; i < 5; i++)
+        if (!scriptPubKey.GetOp(pc, opcode) || opcode != OP_DROP)
+            return false;
+    if (!scriptPubKey.GetOp(pc, opcode) || opcode != OP_TRUE)
+        return false;
+    if (pc != scriptPubKey.end())
+        return false;
+
+    typeRet = TX_FALCON;
+    vSolutionsRet.push_back(vchHash);
+    return true;
+}
+
 //
 // Return public keys or hashes from scriptPubKey, for 'standard' transaction types.
 //
@@ -1412,6 +1444,11 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::v
         vSolutionsRet.push_back(hashBytes);
         return true;
     }
+
+    // Phoenix falcon redeem script:
+    //   push salt OP_DROP push 32 [32 byte SHA256(falcon pubkey)] OP_FALCONVERIFY 5x OP_DROP OP_TRUE
+    if (IsFalconRedeemScript(scriptPubKey, typeRet, vSolutionsRet))
+        return true;
 
     // Provably prunable, data-carrying output
     //
@@ -1620,6 +1657,30 @@ bool Solver(const CKeyStore& keystore, const CScript& scriptPubKey, const uint25
     case TX_MULTISIG:
         scriptSigRet << OP_0; // workaround CHECKMULTISIG bug
         return (SignN(vSolutions, keystore, hash, nHashType, scriptSigRet));
+    case TX_FALCON:
+        {
+            CFalconKeyID id = CFalconKeyID(uint256(vSolutions[0]));
+            CFalconKey key;
+            if (!keystore.GetFalconKey(id, key))
+                return false;
+
+            std::vector<unsigned char> vchSig;
+            if (!key.Sign(hash, vchSig))
+                return false;
+
+            // phoenix scriptSig layout: the signature and pubkey 520-byte
+            // chunks are pushed in reverse order so that concatenation of
+            // stacktop(-1) and stacktop(-2) (etc.) restores them in forward
+            // order. The redeem script is appended by SignSignature and the
+            // pubkey-hash push of it lands on top of the stack where
+            // OP_FALCONVERIFY expects it.
+            const std::vector<unsigned char>& vchPubKey = key.GetPubKey();
+            std::vector<unsigned char> vchSig1, vchSig2, vchKey1, vchKey2;
+            CFalconKey::SplitForScript(vchSig, vchSig1, vchSig2);
+            CFalconKey::SplitForScript(vchPubKey, vchKey1, vchKey2);
+            scriptSigRet << vchSig2 << vchSig1 << vchKey2 << vchKey1;
+            return true;
+        }
     }
     return false;
 }
@@ -1641,6 +1702,8 @@ int ScriptSigArgsExpected(txnouttype t, const std::vector<std::vector<unsigned c
         if (vSolutions.size() < 1 || vSolutions[0].size() < 1)
             return -1;
         return vSolutions[0][0] + 1;
+    case TX_FALCON:
+        return 5;
     case TX_SCRIPTHASH:
         return 1; // doesn't include args needed by the script
     }
@@ -1741,6 +1804,13 @@ isminetype IsMine(const CKeyStore &keystore, const CScript& scriptPubKey)
         if (keystore.HaveKey(keyID))
             return MINE_SPENDABLE;
         break;
+    case TX_FALCON:
+    {
+        CFalconKeyID id = CFalconKeyID(uint256(vSolutions[0]));
+        if (keystore.HaveFalconKey(id))
+            return MINE_SPENDABLE;
+        break;
+    }
     case TX_SCRIPTHASH:
     {
         CScriptID scriptID = CScriptID(uint160(vSolutions[0]));
@@ -2072,6 +2142,7 @@ static CScript CombineSignatures(const CScript& scriptPubKey, const CTransaction
     case TX_PUBKEY:
     case TX_PUBKEY_DROP:
     case TX_PUBKEYHASH:
+    case TX_FALCON:
         // Signatures are bigger than placeholders or empty scripts:
         if (sigs1.empty() || sigs1[0].empty())
             return PushAll(sigs2);
@@ -2225,6 +2296,7 @@ public:
         *script << OP_HASH160 << scriptID << OP_EQUAL;
         return true;
     }
+
 };
 
 void CScript::SetDestination(const CTxDestination& dest)

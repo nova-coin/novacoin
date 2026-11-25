@@ -122,12 +122,17 @@ public:
     // keystore implementation
     // Generate a new key
     CPubKey GenerateNewKey();
+    CScriptID GenerateNewFalconKey(CScript& redeemScriptRet);
+    // Creates a fresh phoenix-style redeem script (and P2SH address) for an existing falcon key
+    CScriptID AddFalconKeyAddress(const CFalconKey& key, CScript& redeemScriptRet);
     CMalleableKeyView GenerateNewMalleableKey();
     // Adds a key to the store, and saves it to disk.
     bool AddKey(const CKey& key);
     bool AddKey(const CMalleableKey& mKey);
+    bool AddFalconKey(const CFalconKey& key);
     // Adds a key to the store, without saving it to disk (used by LoadWallet)
     bool LoadKey(const CKey& key) { return CCryptoKeyStore::AddKey(key); }
+    bool LoadFalconKey(const CFalconKey& key) { return CCryptoKeyStore::AddFalconKey(key); }
     // Load metadata (used by LoadWallet)
     bool LoadKeyMetadata(const CPubKey &pubkey, const CKeyMetadata &metadata);
     bool LoadKeyMetadata(const CMalleableKeyView &keyView, const CKeyMetadata &metadata);
@@ -141,8 +146,10 @@ public:
     // Adds an encrypted key to the store, and saves it to disk.
     bool AddCryptedKey(const CPubKey &vchPubKey, const std::vector<unsigned char> &vchCryptedSecret);
     bool AddCryptedMalleableKey(const CMalleableKeyView& keyView, const std::vector<unsigned char> &vchCryptedSecretH);
+    bool AddCryptedFalconKey(const CFalconKeyID &id, const std::vector<unsigned char> &vchPubKey, const std::vector<unsigned char> &vchCryptedSecret);
     // Adds an encrypted key to the store, without saving it to disk (used by LoadWallet)
     bool LoadCryptedKey(const CPubKey &vchPubKey, const std::vector<unsigned char> &vchCryptedSecret);
+    bool LoadCryptedFalconKey(const CFalconKeyID &id, const std::vector<unsigned char> &vchPubKey, const std::vector<unsigned char> &vchCryptedSecret);
     bool AddCScript(const CScript& redeemScript);
     bool LoadCScript(const CScript& redeemScript);
 

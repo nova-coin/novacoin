@@ -57,6 +57,10 @@ public:
      */
     QString addRow(const QString &type, const QString &label, const QString &address);
 
+    /* Generate a new falcon (post-quantum) receiving address and add it to the
+       address book. Returns the added address on success, and an empty string otherwise. */
+    QString addFalconRow(const QString &label);
+
     /* Look up label for address in address book, if not found return empty string.
      */
     QString labelForAddress(const QString &address) const;

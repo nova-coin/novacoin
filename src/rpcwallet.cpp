@@ -1718,7 +1718,37 @@ public:
         }
         return obj;
     }
+
 };
+
+Value getnewfalconaddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 1)
+        throw std::runtime_error(
+            "getnewfalconaddress [account]\n"
+            "Returns a new post-quantum (Falcon-512) NovaCoin address for receiving payments.  "
+            "The address is a P2SH address (same as in the phoenix wallet) whose redemption "
+            "script commits to a falcon public key.  "
+            "If [account] is specified (recommended), it is added to the address book "
+            "so payments received with the address will be credited to [account].");
+
+    std::string strAccount;
+    if (params.size() > 0)
+        strAccount = AccountFromValue(params[0]);
+
+    if (pwalletMain->IsCrypted() && pwalletMain->IsLocked())
+        throw JSONRPCError(RPC_WALLET_ERROR, "Error: wallet locked; use walletpassphrase first");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    CScript redeemScript;
+    CScriptID scriptID = pwalletMain->GenerateNewFalconKey(redeemScript);
+    CBitcoinAddress address(scriptID);
+
+    pwalletMain->SetAddressBookName(address, strAccount);
+
+    return address.ToString();
+}
 
 Value validateaddress(const Array& params, bool fHelp)
 {

@@ -134,6 +134,41 @@ Copyright © 2012-2026 The NovaCoin developers</source>
         <source>Could not write to file %1.</source>
         <translation>Неможливо записати у файл %1.</translation>
     </message>
+    <message>
+        <location filename="../forms/addressbookpage.ui" line="77"/>
+        <source>Create a new post-quantum (Falcon-512) address</source>
+        <translation>Створити новий постквантовий (Falcon-512) адрес</translation>
+    </message>
+    <message>
+        <location filename="../forms/addressbookpage.ui" line="80"/>
+        <source>&amp;Falcon Address</source>
+        <translation>Нова Falcon-адреса</translation>
+    </message>
+    <message>
+        <location filename="../addressbookpage.cpp" line="237"/>
+        <source>New Falcon address</source>
+        <translation>Нова Falcon-адреса</translation>
+    </message>
+    <message>
+        <location filename="../addressbookpage.cpp" line="238"/>
+        <source>Label</source>
+        <translation>Мітка</translation>
+    </message>
+    <message>
+        <location filename="../addressbookpage.cpp" line="247"/>
+        <source>Error generating address</source>
+        <translation>Помилка генерації адреси</translation>
+    </message>
+    <message>
+        <location filename="../addressbookpage.cpp" line="248"/>
+        <source>Could not unlock wallet.</source>
+        <translation>Неможливо розблокувати гаманець.</translation>
+    </message>
+    <message>
+        <location filename="../addressbookpage.cpp" line="252"/>
+        <source>Failed to generate a Falcon-512 address.</source>
+        <translation>Не вдалося згенерувати Falcon-512 адресу.</translation>
+    </message>
 </context>
 <context>
     <name>AddressTableModel</name>

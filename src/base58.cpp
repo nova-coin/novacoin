@@ -247,7 +247,7 @@ bool DecodeBase58Check(const std::string& str, std::vector<unsigned char>& vchRe
         vchData.resize(vchTemp.size() - 1);
         if (!vchData.empty())
             memcpy(&vchData[0], &vchTemp[1], vchData.size());
-        OPENSSL_cleanse(&vchTemp[0], vchData.size());
+        OPENSSL_cleanse(&vchTemp[0], vchTemp.size());
         return true;
     }
 
@@ -495,4 +495,60 @@ bool DecodeBase58Check(const std::string& str, std::vector<unsigned char>& vchRe
     CBitcoinSecret::CBitcoinSecret(const CSecret& vchSecret, bool fCompressed)
     {
         SetSecret(vchSecret, fCompressed);
+    }
+
+    void CBitcoinFalconKey::SetKey(const CFalconKey& key, const std::vector<unsigned char>& vchSalt)
+    {
+        assert(key.IsValid());
+        assert(vchSalt.size() == SALT_SIZE);
+        std::vector<unsigned char> vchData;
+        vchData.reserve(key.GetPubKey().size() + key.GetPrivKey().size() + SALT_SIZE);
+        vchData.insert(vchData.end(), key.GetPubKey().begin(), key.GetPubKey().end());
+        vchData.insert(vchData.end(), key.GetPrivKey().begin(), key.GetPrivKey().end());
+        vchData.insert(vchData.end(), vchSalt.begin(), vchSalt.end());
+        SetData(fTestNet ? 250 : 128 + CBitcoinAddress::SCRIPT_ADDRESS, vchData.empty() ? NULL : &vchData[0], vchData.size());
+    }
+
+    bool CBitcoinFalconKey::GetKey(CFalconKey& keyOut) const
+    {
+        if (vchData.size() != CFalconKey::PUBKEY_SIZE + CFalconKey::PRIVKEY_SIZE + SALT_SIZE)
+            return false;
+        return keyOut.SetKeys(std::vector<unsigned char>(vchData.begin(), vchData.begin() + CFalconKey::PUBKEY_SIZE),
+                              std::vector<unsigned char>(vchData.begin() + CFalconKey::PUBKEY_SIZE, vchData.begin() + CFalconKey::PUBKEY_SIZE + CFalconKey::PRIVKEY_SIZE));
+    }
+
+    bool CBitcoinFalconKey::GetSalt(std::vector<unsigned char>& vchSaltOut) const
+    {
+        if (vchData.size() != CFalconKey::PUBKEY_SIZE + CFalconKey::PRIVKEY_SIZE + SALT_SIZE)
+            return false;
+        vchSaltOut.assign(vchData.end() - SALT_SIZE, vchData.end());
+        return true;
+    }
+
+    bool CBitcoinFalconKey::IsValid() const
+    {
+        bool fExpectTestNet = false;
+        switch(nVersion)
+        {
+            case (128 + CBitcoinAddress::SCRIPT_ADDRESS):
+                break;
+
+            case 250:
+                fExpectTestNet = true;
+                break;
+
+            default:
+                return false;
+        }
+        return fExpectTestNet == fTestNet && vchData.size() == CFalconKey::PUBKEY_SIZE + CFalconKey::PRIVKEY_SIZE + SALT_SIZE;
+    }
+
+    bool CBitcoinFalconKey::SetString(const char* pszSecret)
+    {
+        return CBase58Data::SetString(pszSecret) && IsValid();
+    }
+
+    bool CBitcoinFalconKey::SetString(const std::string& strSecret)
+    {
+        return SetString(strSecret.c_str());
     }

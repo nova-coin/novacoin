@@ -373,6 +373,35 @@ QString AddressTableModel::addRow(const QString &type, const QString &label, con
     return QString::fromStdString(strAddress);
 }
 
+QString AddressTableModel::addFalconRow(const QString &label)
+{
+    editStatus = OK;
+
+    WalletModel::UnlockContext ctx(walletModel->requestUnlock());
+    if(!ctx.isValid())
+    {
+        // Unlock wallet failed or was cancelled
+        editStatus = WALLET_UNLOCK_FAILURE;
+        return QString();
+    }
+
+    try
+    {
+        CScript redeemScript;
+        CScriptID scriptID = wallet->GenerateNewFalconKey(redeemScript);
+        std::string strAddress = CBitcoinAddress(scriptID).ToString();
+
+        LOCK(wallet->cs_wallet);
+        wallet->SetAddressBookName(CBitcoinAddress(strAddress), label.toStdString());
+        return QString::fromStdString(strAddress);
+    }
+    catch(const std::runtime_error &e)
+    {
+        editStatus = KEY_GENERATION_FAILURE;
+        return QString();
+    }
+}
+
 bool AddressTableModel::removeRows(int row, int count, const QModelIndex &parent)
 {
     Q_UNUSED(parent);
