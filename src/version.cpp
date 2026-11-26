@@ -11,7 +11,7 @@
 const std::string CLIENT_NAME("Satoshi");
 
 // Client version number
-#define CLIENT_VERSION_SUFFIX   "-PQ-leveldb"
+#define CLIENT_VERSION_SUFFIX   "-PQF-leveldb"
 
 // Compiler name
 #ifdef __INTEL_COMPILER
